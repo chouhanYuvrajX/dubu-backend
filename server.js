@@ -74,7 +74,21 @@ app.get('/vapid-public-key', (req, res) => {
 // ============================================================
 // Firebase listener: naya message aaya? dusre ko push bhejo!
 // ============================================================
-let lastMsgTime = Date.now(); // Server start ke pehle ke messages ignore karo
+let lastMsgTime = Date.now(); 
+app.post('/notify', async (req, res) => {
+  const { targetRole, title, body } = req.body;
+  try {
+    const subSnap = await db.ref('pushSubscriptions/' + targetRole).once('value');
+    const subscription = subSnap.val();
+    await webpush.sendNotification(subscription, JSON.stringify({ title: title || 'DUBU', body: body || 'Naya message!', icon: '/logo.png', tag: 'dubu-msg' }));
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.statusCode === 410) { await db.ref('pushSubscriptions/' + targetRole).remove(); res.json({ ok: false }); }
+    else res.status(500).json({ error: err.message });
+  }
+});
+
+// Server start ke pehle ke messages ignore karo
 
 db.ref('messages').on('child_added', async (snap) => {
   const msg = snap.val();
@@ -120,6 +134,20 @@ db.ref('messages').on('child_added', async (snap) => {
     } else {
       console.error('Push error:', err.message);
     }
+  }
+});
+
+
+app.post('/notify', async (req, res) => {
+  const { targetRole, title, body } = req.body;
+  try {
+    const subSnap = await db.ref('pushSubscriptions/' + targetRole).once('value');
+    const subscription = subSnap.val();
+    await webpush.sendNotification(subscription, JSON.stringify({ title: title || 'DUBU', body: body || 'Naya message!', icon: '/logo.png', tag: 'dubu-msg' }));
+    res.json({ ok: true });
+  } catch (err) {
+    if (err.statusCode === 410) { await db.ref('pushSubscriptions/' + targetRole).remove(); res.json({ ok: false }); }
+    else res.status(500).json({ error: err.message });
   }
 });
 
